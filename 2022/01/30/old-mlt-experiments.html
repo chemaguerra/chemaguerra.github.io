@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Old MLT experiments | Brash &amp; Plucky</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Old MLT experiments" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="These are some very old MLT tests that I found on my hard drive today." />
+<meta property="og:description" content="These are some very old MLT tests that I found on my hard drive today." />
+<link rel="canonical" href="http://localhost:4000/2022/01/30/old-mlt-experiments.html" />
+<meta property="og:url" content="http://localhost:4000/2022/01/30/old-mlt-experiments.html" />
+<meta property="og:site_name" content="Brash &amp; Plucky" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-01-30T04:52:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Old MLT experiments" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-01-30T04:52:00+01:00","datePublished":"2022-01-30T04:52:00+01:00","description":"These are some very old MLT tests that I found on my hard drive today.","headline":"Old MLT experiments","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2022/01/30/old-mlt-experiments.html"},"url":"http://localhost:4000/2022/01/30/old-mlt-experiments.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Brash &amp; Plucky" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Brash &amp; Plucky</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Old MLT experiments</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2022-01-30T04:52:00+01:00" itemprop="datePublished">Jan 30, 2022
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p><strong>These are some very old MLT tests that I found on my hard drive today.</strong></p>
+
+<p><a href="https://en.wikipedia.org/wiki/Metropolis_light_transport">Metropolis Light Transport</a> (MLT) is a global illumination variant of the <a href="https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm">Metropolis-Hastings</a> algorithm for <a href="https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo">Markov-Chain Monte Carlo</a> (MCMC).</p>
+
+<p>In a nutshell, MCMC algorithms explore the neighborhood of a Monte Carlo sample by jittering (mutating) said sample. A metric is then used to define <em>how good</em> a sample is, so the next mutation is accepted or rejected based on how good it is compared to the current sample. This leads to a <em>random-walk</em> in the space of samples which tends to crawl up in the increasing direction of the metric used.</p>
+
+<p>This method biases sampling towards successful samples. So a bit of statistics juggling is required to counter that bias. The link below is a seminal paper that beautifully describes the nuts and bolts of this process. The idea presented there is to jitter samples, not in sample space directly, but in quasi-random number tuples space instead:</p>
+
+<p><a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.21.4826&amp;rep=rep1&amp;type=pdf">Simple and Robust Mutation Strategy for Metropolis Light
+Transport Algorithm</a></p>
+
+<p>In the particular case of MLT, samples are random light paths, and the metric used is the amount of light energy transported by a path. This can be implemented on top of regular Path Tracing. Arion was the first (?) commercial render engine that did this on the GPU back in 2012 or so.</p>
+
+<p>MLT has fallen out of favor over the years (path guiding is all the rage these days). But MLT proved to be a competent <em>universal solution</em> to global illumination, being capable of boosting path tracing so it could efficiently solve even the hardest cases, such as refractive caustics.</p>
+
+<p>The beauty of MLT is that it requires 0 configuration from the user and does not need any additional memory for data structures. The main drawbacks are the <em>ugly splotchy and non-uniform look of noise</em>, as compared to regular path tracing, and the inability to guarantee noise <em>stability across animation frames</em>.</p>
+
+<h2 id="experiments-in-2d">Experiments in 2D</h2>
+
+<p>Before I implemented MLT in Arion, I did some MCMC simulations with 2D sampling. In the videos below I used the <code class="language-plaintext highlighter-rouge">(x,y)</code> coords of pixels as samples, and the grayscale luminance <code class="language-plaintext highlighter-rouge">Y</code> of the image as the metric. The goal of the mutations here is to reconstruct the image by sampling harder in the directions of higher luminance.</p>
+
+<p>MCMC is prone to getting stuck for long amounts of time in local maxima. The practical solution proposed in the above paper is to introduce a <em>plarge</em> probability that kicks the sampling scheme and sends the next sample to a purely random position in the sample space. The videos below visualize this very well I think.</p>
+
+<p><em>Mutating in QRN tuple space without plarge</em></p>
+
+<iframe width="640" height="640" src="http://www.youtube.com/embed/55CXyRqXIJU?color=white&amp;theme=light"></iframe>
+
+<p><em>Mutating in QRN tuple space with plarge</em></p>
+
+<iframe width="640" height="640" src="http://www.youtube.com/embed/RJIDema8mz4?color=white&amp;theme=light"></iframe>
+
+<p><em>MLT reconstructing a grayscale image</em></p>
+
+<iframe width="640" height="640" src="http://www.youtube.com/embed/WYvMGtWp4N4?color=white&amp;theme=light"></iframe>
+
+<p>Implementing MLT successfully in <a href="https://maverickrender.com">our render engine</a> did require some specialization in our sampling routines. I won’t get into the details, but basically, since mutations happen in the random tuples that generate the paths, you expect continuous mutations in the tuples to produce continuous changes in the generated paths. So all samplers involved must avoid discontinuities in the <code class="language-plaintext highlighter-rouge">[QRN&lt;-&gt;path]</code> bijection.</p>
+
+<h2 id="back-in-time">Back in time</h2>
+
+<p>Some MLT-heavy images rendered in Arion back in the day:</p>
+
+<p><img src="/uploads/2022/dc95e60f9e.jpg" width="600" height="429" alt="" /></p>
+
+<p><img src="/uploads/2022/94c3cb35a8.jpg" width="600" height="337" alt="" /></p>
+
+<p><img src="/uploads/2022/45f4967f73.jpg" width="600" height="337" alt="" /></p>
+
+  </div><a class="u-url" href="/2022/01/30/old-mlt-experiments.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Brash &amp; Plucky</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Brash &amp; Plucky</li><li><a class="u-email" href="mailto:brashandplucky@gmail.com">brashandplucky@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">chemaguerra</span></a></li><li><a href="https://www.twitter.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">chemaguerra</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

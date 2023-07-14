@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Filling of missing image pixels | Brash &amp; Plucky</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Filling of missing image pixels" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Here’s what we could call a mean pyramid of the 512×512 Lena image. i.e., a sequence of progressive 1:2 downscalings, where each pixel in the i-th downscaled level is the average of the corresponding 4 pixels in the previous level. For people familiar with OpenGL and such, this is what happens when the mipmaps for a texture map are computed:" />
+<meta property="og:description" content="Here’s what we could call a mean pyramid of the 512×512 Lena image. i.e., a sequence of progressive 1:2 downscalings, where each pixel in the i-th downscaled level is the average of the corresponding 4 pixels in the previous level. For people familiar with OpenGL and such, this is what happens when the mipmaps for a texture map are computed:" />
+<link rel="canonical" href="http://localhost:4000/2015/05/28/filling-of-missing.html" />
+<meta property="og:url" content="http://localhost:4000/2015/05/28/filling-of-missing.html" />
+<meta property="og:site_name" content="Brash &amp; Plucky" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-05-28T16:01:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Filling of missing image pixels" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2015-05-28T16:01:00+02:00","datePublished":"2015-05-28T16:01:00+02:00","description":"Here’s what we could call a mean pyramid of the 512×512 Lena image. i.e., a sequence of progressive 1:2 downscalings, where each pixel in the i-th downscaled level is the average of the corresponding 4 pixels in the previous level. For people familiar with OpenGL and such, this is what happens when the mipmaps for a texture map are computed:","headline":"Filling of missing image pixels","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2015/05/28/filling-of-missing.html"},"url":"http://localhost:4000/2015/05/28/filling-of-missing.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Brash &amp; Plucky" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Brash &amp; Plucky</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Filling of missing image pixels</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2015-05-28T16:01:00+02:00" itemprop="datePublished">May 28, 2015
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>Here’s what we could call a mean pyramid of the 512×512 <a href="https://en.wikipedia.org/wiki/Lena_Fors%C3%A9n">Lena image</a>. <em>i.e.</em>, a sequence of progressive 1:2 downscalings, where each pixel in the i-th downscaled level is the average of the corresponding 4 pixels in the previous level. For people familiar with OpenGL and such, this is what happens when the mipmaps for a texture map are computed:</p>
+
+<p><em>The 9+1 mipmap levels in the 512×512 Lena image</em></p>
+
+<p><img src="/uploads/2022/8a609e57da.png" width="512" height="768" alt="" /></p>
+
+<p>There are many smart, efficient, and relatively simple algorithms based on multi-resolution image pyramids. Modern GPUs can deal with upscaling and downscaling of RGB/A images at the speed of light, so usually such algorithms can be implemented at interactive or even real-time framerates.</p>
+
+<p>Here is the result of upscaling all the mip levels of the Lena image by doing progressive 2:1 bi-linear upscalings until the original resolution is reached:</p>
+
+<p><em>Upscaled mipmap levels</em></p>
+
+<p><img src="/uploads/2022/8d745486da.png" width="600" height="600" alt="" /></p>
+
+<p>Note the characteristic “blocky” (bi-linear) appearance, specially evident in the images of the second row.</p>
+
+<p>Lately, I have been doing some experimentation with <strong>pixel extrapolation</strong> algorithms that “restore” the missing pixels in an incomplete image for a 2D DOF filter based on the Depth AOV.</p>
+
+<p>My pixel extrapolation algorithm works in 2 stages:</p>
+
+<ol>
+  <li>The first stage (analysis) prepares the mean pyramid of the source image by doing progressive 1:2 downscalings. Only the meaningful (not-a-hole) pixels in each 2x2 packet are averaged down. If a 2x2 packet does not have any meaningful pixels, a hole is passed to the next (lower) level.</li>
+  <li>The second stage (synthesis) starts at the smallest level and goes up, leaving meaningful pixels intact, while replacing holes by upscaled data from the previous (lower) level.</li>
+</ol>
+
+<p><em>Mean pyramid (with holes)</em></p>
+
+<p><img src="/uploads/2022/ab15c77d06.png" width="512" height="768" alt="" /></p>
+
+<p>Note that the analysis stage can stop as soon as a mip level doesn’t have any holes.</p>
+
+<p>Here is the full algorithm, successfully filling the missing pixels in the image.</p>
+
+<p><em>Mean pyramid (filled)</em></p>
+
+<p><img src="/uploads/2022/92cab1f783.png" width="512" height="768" alt="" /></p>
+
+<h3 id="conclusions">Conclusions</h3>
+
+<p>This algorithm can be implemented in an extremely efficient fashion on the GPU, and allows for fantastic parallelization on the CPU as well. The locality of color/intensity is preserved reasonably well, although holes become smears of color “too easily”.</p>
+
+<p>A small (classic) inconvenience is that the source image must be pre-padded to a power-of-2 size for the progressive 1:2 downscalings to be well defined. I picked an image that is a power-of-2 in size already in the above examples.</p>
+
+<p>TL;DR: Given the ease of implementation and the extreme potential in terms of efficiency, the results are quite decent for many applications.</p>
+
+  </div><a class="u-url" href="/2015/05/28/filling-of-missing.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Brash &amp; Plucky</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Brash &amp; Plucky</li><li><a class="u-email" href="mailto:brashandplucky@gmail.com">brashandplucky@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">chemaguerra</span></a></li><li><a href="https://www.twitter.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">chemaguerra</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Viewport baked PBR materials | Brash &amp; Plucky</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Viewport baked PBR materials" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="The technique described here is very basic, but useful nonetheless." />
+<meta property="og:description" content="The technique described here is very basic, but useful nonetheless." />
+<link rel="canonical" href="http://localhost:4000/2022/04/20/fake-viewport-pbr.html" />
+<meta property="og:url" content="http://localhost:4000/2022/04/20/fake-viewport-pbr.html" />
+<meta property="og:site_name" content="Brash &amp; Plucky" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-04-20T04:51:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Viewport baked PBR materials" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-04-20T04:51:00+02:00","datePublished":"2022-04-20T04:51:00+02:00","description":"The technique described here is very basic, but useful nonetheless.","headline":"Viewport baked PBR materials","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2022/04/20/fake-viewport-pbr.html"},"url":"http://localhost:4000/2022/04/20/fake-viewport-pbr.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Brash &amp; Plucky" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Brash &amp; Plucky</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Viewport baked PBR materials</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2022-04-20T04:51:00+02:00" itemprop="datePublished">Apr 20, 2022
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>The technique described here is very basic, but useful nonetheless.</p>
+
+<p>Let’s make the following broad assumptions:</p>
+
+<ol>
+  <li>No interactions between surfaces (<em>i.e.,</em> no GI, no occlusion, etc…).</li>
+  <li>The only light source is an IBL (environment) map placed at infinity which orientation is anchored to the camera.</li>
+  <li>Each surface point <code class="language-plaintext highlighter-rouge">P</code> is made of a perfectly rough white material which simply “collects” the light that arrives to <code class="language-plaintext highlighter-rouge">P</code> from above the hemiplane defined by <code class="language-plaintext highlighter-rouge">(P,N)</code>.</li>
+</ol>
+
+<p><img src="/uploads/2022/46104cc277.png" width="600" height="147" alt="" /></p>
+
+<p>Under such assumptions a ball floating in the void looks like this image rendered in <a href="https://maverickrender.com/">Maverick Studio</a> with a procedural sphere primitive and a standard material:</p>
+
+<p><img src="/uploads/2022/fa47d8b7f7.png" width="600" height="600" alt="" /></p>
+
+<p><img src="/uploads/2022/6e5bed50ac.png" width="600" height="300" alt="" /></p>
+
+<p>The illumination collected by each point <code class="language-plaintext highlighter-rouge">P</code> and radiated back to the camera (+ tonemapping) happens to be, exactly, one particular pixel in the rendered ball as depicted in the hand-drawn diagram above. Note that due to the constraints set, <strong>this color depends exclusively on the normal <code class="language-plaintext highlighter-rouge">N</code> at <code class="language-plaintext highlighter-rouge">P</code> but not on <code class="language-plaintext highlighter-rouge">P</code> itself</strong>. In other words, the rendered ball effectively precomputes what any surface point <code class="language-plaintext highlighter-rouge">P</code> sees through its normal <code class="language-plaintext highlighter-rouge">N</code>.</p>
+
+<p>The goal in this post is to benefit from this knowledge in a rasterization viewport. So let’s jump now to the world of pixel shaders. In our vertex shader, let’s transform the object’s normals <code class="language-plaintext highlighter-rouge">N</code> to camera space <code class="language-plaintext highlighter-rouge">Nc</code> and let’s drop the resulting Z coordinate. <code class="language-plaintext highlighter-rouge">(Nc.x,Nc.y)</code> are the geometry normals projected to screen space. Let’s normalize these: <code class="language-plaintext highlighter-rouge">Nc'=normalize(Nc.x,Nc.y)</code></p>
+
+<p>Let’s upload the ball render as a regular 2D texture and let’s define the following UV space:</p>
+
+<p><img src="/uploads/2022/4761754b1a.png" width="600" height="600" alt="" /></p>
+
+<p><code class="language-plaintext highlighter-rouge">Nc'</code> is normalized, so the UVs generated will cover the interior of the ball only. Normals at grazing angles will be near the perimeter of the texture’s ball.</p>
+
+<p>In our fragment shader, let’s simply output the color found in the ball image at the UVs computed as described. Here’s the result:</p>
+
+<p><img src="/uploads/2022/c2abfa5373.gif" width="600" height="574" alt="" /></p>
+
+<p>Of course, physically-based materials are more complicated than this. In general, the amount of light received by the surface from the <code class="language-plaintext highlighter-rouge">(P,N)</code> hemiplane through each possible incoming direction and then bounced back through each possible outgoing direction depends on both directions, and also on the properties of the material. This is basically the definition of a <a href="https://en.wikipedia.org/wiki/Bidirectional_reflectance_distribution_function">BRDF</a>, BTW.</p>
+
+<p>But because we set the constraint that the lights are not moving (<em>i.e.,</em> the IBL stays fixed with respect to the camera) the incoming and outgoing directions and hence the behavior of the BRDF ends up being a function of <code class="language-plaintext highlighter-rouge">N</code> and <em>nothing</em> else. So this method still works <strong>no matter what material we render the ball with</strong> (well… excluding refractions).</p>
+
+<p>Here goes another example with the same IBL but adding some specularity to the material:</p>
+
+<p><img src="/uploads/2022/9be65014fb.gif" width="600" height="574" alt="" /></p>
+
+<p><img src="/uploads/2022/c4514647d1.png" width="600" height="600" alt="" /></p>
+
+<p>Of course this could be pushed further with some SSAO or any other technique that approximates self-shadowing. But this is a very compact and cheap (memory/code/effort) way to display models in an easy-to-author appealing way.</p>
+
+<p>Some final notes:</p>
+
+<ul>
+  <li>If you want to be accurate, the ball should be rendered with an <em>orthographic</em> camera (<em>i.e.,</em> not with a <em>perspective</em> camera).</li>
+  <li>For blurry/glossy or diffuse reflections, you can get away with a low-res ball render. However, make sure that the UVs that you generate don’t step on the antialias pixels at the boundary of the rendered ball. Otherwise shading will look b0rked at grazing angles.</li>
+  <li>This technique can be extended by using 2 ball images: one with the diffuse component of the material, and another with the specular component. This way the fragment shader could modulate the diffuse part and the specular part by separate colors that could be passed as inputs to the shader. Keep in mind that this would require that the ball images and the colors are passed in linear (instead of sRGB) space and that the resulting color is sent back to sRGB.</li>
+</ul>
+
+  </div><a class="u-url" href="/2022/04/20/fake-viewport-pbr.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Brash &amp; Plucky</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Brash &amp; Plucky</li><li><a class="u-email" href="mailto:brashandplucky@gmail.com">brashandplucky@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">chemaguerra</span></a></li><li><a href="https://www.twitter.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">chemaguerra</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

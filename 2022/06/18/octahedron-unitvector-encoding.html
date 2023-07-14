@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Octahedron unit-vector encoding | Brash &amp; Plucky</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Octahedron unit-vector encoding" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="There are many situations in Computer Graphics where you may need to store massive amounts of unit-length vectors (e.g., directions, surface normals, …). The normals AOV in a G-Buffer, incoming directions in a Photon map, or uploading a 3D model to the GPU for rendering are situations that greatly benefit from a bit-efficient encoding for normals." />
+<meta property="og:description" content="There are many situations in Computer Graphics where you may need to store massive amounts of unit-length vectors (e.g., directions, surface normals, …). The normals AOV in a G-Buffer, incoming directions in a Photon map, or uploading a 3D model to the GPU for rendering are situations that greatly benefit from a bit-efficient encoding for normals." />
+<link rel="canonical" href="http://localhost:4000/2022/06/18/octahedron-unitvector-encoding.html" />
+<meta property="og:url" content="http://localhost:4000/2022/06/18/octahedron-unitvector-encoding.html" />
+<meta property="og:site_name" content="Brash &amp; Plucky" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-06-18T00:12:10+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Octahedron unit-vector encoding" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-06-18T00:12:10+02:00","datePublished":"2022-06-18T00:12:10+02:00","description":"There are many situations in Computer Graphics where you may need to store massive amounts of unit-length vectors (e.g., directions, surface normals, …). The normals AOV in a G-Buffer, incoming directions in a Photon map, or uploading a 3D model to the GPU for rendering are situations that greatly benefit from a bit-efficient encoding for normals.","headline":"Octahedron unit-vector encoding","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2022/06/18/octahedron-unitvector-encoding.html"},"url":"http://localhost:4000/2022/06/18/octahedron-unitvector-encoding.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Brash &amp; Plucky" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Brash &amp; Plucky</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Octahedron unit-vector encoding</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2022-06-18T00:12:10+02:00" itemprop="datePublished">Jun 18, 2022
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>There are many situations in Computer Graphics where you may need to store massive amounts of unit-length vectors (<em>e.g.,</em> directions, surface normals, …). The normals AOV in a G-Buffer, incoming directions in a Photon map, or uploading a 3D model to the GPU for rendering are situations that greatly benefit from a bit-efficient encoding for normals.</p>
+
+<h3 id="spherical-coordinates-encoding">Spherical coordinates encoding</h3>
+
+<p>The straightforward way to encode a normal is to store its <code class="language-plaintext highlighter-rouge">(x,y,z)</code> coordinates, which takes <code class="language-plaintext highlighter-rouge">3x32=96</code> bits in single-precision floating-point. This naive approach doesn’t take advantage of the fact that in normals or directions the vector length is irrelevant. So assuming unit length, you may use <a href="https://en.wikipedia.org/wiki/Spherical_coordinate_system">spherical coordinates</a> <code class="language-plaintext highlighter-rouge">(theta, phi)</code> and encode each normal with 2 numbers instead of 3.</p>
+
+<p>Since <code class="language-plaintext highlighter-rouge">(theta, phi)</code> have a <code class="language-plaintext highlighter-rouge">[0..2pi]</code> and <code class="language-plaintext highlighter-rouge">[0..pi]</code> range, it sounds reasonable to quantize its values using fixed-point math. This way both angles become a couple of integers of, say, 16-bit each, with their ranges turned into <code class="language-plaintext highlighter-rouge">[0..65535]</code>. Note that this gives twice as much resolution to <code class="language-plaintext highlighter-rouge">phi</code> but that’s fine. We have achieved a reasonably fine-grained <code class="language-plaintext highlighter-rouge">16+16=32-bit</code> encoding. Depending on how tolerable precision losses are in your application, you may go even lower (<em>e.g.,</em> <code class="language-plaintext highlighter-rouge">12+12=24-bit</code>, or even <code class="language-plaintext highlighter-rouge">8+8=16-bit</code>).</p>
+
+<p>The problem with this simple approach is that spherical coordinates are not an equal-area transform, as they concentrate points near the poles.</p>
+
+<p><em>Spherical coordinates encoding:
+phi gets more precision than theta, and density between the equator/poles is highly uneven.</em></p>
+
+<p><img src="/uploads/2022/873b2d9fa1.png" width="600" height="600" alt="" /></p>
+
+<h3 id="octahedron-encoding">Octahedron encoding</h3>
+
+<p>A smarter solution which produces a much more even distribution, while being strikingly simple and more efficient computationally (no trigonometry whatsoever) is <em>octahedron encoding</em>.</p>
+
+<p><em>Octahedron encoding: The distribution is pretty even.</em></p>
+
+<p><img src="/uploads/2022/8dd7d5f179.png" width="600" height="600" alt="" /></p>
+
+<p>The idea is to project positions in the sphere (unit vectors) onto a sphere-centered octahedron. And then piece together the 8 faces of the octahedron in the unit cube. This diagram should be self-explanatory.</p>
+
+<p><img src="/uploads/2022/9d8daaf83d.png" width="600" height="249" alt="" /></p>
+
+<p>Reference: <a href="https://www.readkong.com/page/octahedron-environment-maps-6054207">Octahedron environment maps</a></p>
+
+<h3 id="fibonacci-encoding">Fibonacci encoding</h3>
+
+<p>Recently I have been using the Fibonacci lattice here and there and had the idea to use its equal-area spherical flavor for normal encoding. After googling a bit I came across this paper, so somebody had the idea first:</p>
+
+<p><a href="https://www.jcgt.org/published/0009/04/02/">Unorganized Unit Vectors Sets Quantization</a></p>
+
+<p>Actually, pulling from this thread I also came across these Shadertoy samples by Íñigo Quilez. They visualize what happens with either method as more bits are budgeted for normals encoding:</p>
+
+<p><em>Fibonacci:</em> https://www.shadertoy.com/view/4t2XWK</p>
+
+<p><em>Octahedron:</em> https://www.shadertoy.com/view/Mtfyzl</p>
+
+<p><em>Fibonacci encoding: Looks great, but comes at a price.</em></p>
+
+<p><img src="/uploads/2022/6a0ed723f7.png" width="600" height="600" alt="" /></p>
+
+<p>This looks elegant (pretty even!). Unfortunately the implementation to encode/decode unit-vectors with <code class="language-plaintext highlighter-rouge">n</code> bits is rather convoluted and involves <code class="language-plaintext highlighter-rouge">N=2^n</code>  and <code class="language-plaintext highlighter-rouge">1/N</code>. As soon as <code class="language-plaintext highlighter-rouge">n&gt;24</code> or so numerical degradation makes this solution unusable in single-precision. Also, this method is significantly slower than octahedron encoding, and while the distribution looks prettier, the difference in practice is negligible.</p>
+
+  </div><a class="u-url" href="/2022/06/18/octahedron-unitvector-encoding.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Brash &amp; Plucky</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Brash &amp; Plucky</li><li><a class="u-email" href="mailto:brashandplucky@gmail.com">brashandplucky@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">chemaguerra</span></a></li><li><a href="https://www.twitter.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">chemaguerra</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
