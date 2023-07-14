@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Micro-Patch Displacement Mapping | Chema Guerra</title>
+<meta name="generator" content="Jekyll v4.3.2" />
+<meta property="og:title" content="Micro-Patch Displacement Mapping" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="One major endeavour that I undertook this past summer was the creation of a novel displacement mapping system for Maverick Render." />
+<meta property="og:description" content="One major endeavour that I undertook this past summer was the creation of a novel displacement mapping system for Maverick Render." />
+<link rel="canonical" href="http://localhost:4000/3d/coding/math/render/2022/09/30/micropatch-displacement-mapping.html" />
+<meta property="og:url" content="http://localhost:4000/3d/coding/math/render/2022/09/30/micropatch-displacement-mapping.html" />
+<meta property="og:site_name" content="Chema Guerra" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-09-30T23:01:34+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Micro-Patch Displacement Mapping" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-09-30T23:01:34+02:00","datePublished":"2022-09-30T23:01:34+02:00","description":"One major endeavour that I undertook this past summer was the creation of a novel displacement mapping system for Maverick Render.","headline":"Micro-Patch Displacement Mapping","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/3d/coding/math/render/2022/09/30/micropatch-displacement-mapping.html"},"url":"http://localhost:4000/3d/coding/math/render/2022/09/30/micropatch-displacement-mapping.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Chema Guerra" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Chema Guerra</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Micro-Patch Displacement Mapping</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2022-09-30T23:01:34+02:00" itemprop="datePublished">Sep 30, 2022
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>One major endeavour that I undertook this past summer was the creation of a novel displacement mapping system for <a href="https://maverickrender.com/">Maverick Render</a>.</p>
+
+<p>The main motivations behind this have been:</p>
+
+<ul>
+  <li>Our customers were running out of GPU memory too often when using displacement.</li>
+  <li>Our main goal is that <strong>Maverick is an exquisite-quality tool for model visualization</strong>. Hence displacement is very important to us.</li>
+  <li>Open the door to some other geometry-generation features beyond displacement itself.</li>
+</ul>
+
+<p>So I undusted the old <em>virtualized geometry</em> solution I implemented for <a href="https://randomcontrol.com">fryrender</a> back in 2008 and re-engineered it for the Maverick core in the GPU.</p>
+
+<h3 id="say-hi-to-micro-patch-displacement-mapping">Say hi to: Micro-Patch Displacement Mapping</h3>
+
+<p><em>Non-affine MPDM in arbitrarily-curved surfaces</em></p>
+
+<!-- <video controls="controls" playsinline="playsinline" loop src="/uploads/2022/ffa546d832.mp4" width="600" height="600" poster="/uploads/2022/0c42143df2.png" alt="" />" preload="none"></video> -->
+
+<p><em>Affine MPDM in flat surfaces</em></p>
+
+<!-- <video controls="controls" playsinline="playsinline" loop src="/uploads/2022/96178f84c6.mp4" width="600" height="600" poster="/uploads/2022/7016a7ae6d.png" alt="" />" preload="none"></video> -->
+
+<p>Some good properties of Maverick’s displacement:</p>
+
+<ul>
+  <li>No requirements <em>whatsoever</em> on the base mesh or on the heightmap texture.</li>
+  <li>It costs near 0 in warm-up time.</li>
+  <li>It costs near 0 in memory (only a small payload is appended to the height map).</li>
+  <li>0 information is lost; every single texel in the heightmap is turned into a displaced <em>micro-patch</em>.</li>
+  <li>Implemented as a custom primitive in Maverick’s OptiX ray-tracing backend.</li>
+  <li>Used every trick in the book to optimize it as much as I could.</li>
+</ul>
+
+<h3 id="mpdm-vs-brute-force">MPDM vs. brute-force</h3>
+
+<p>MPDM is meant to address some classic problems with the <em>subdivide-and-displace-vertices</em> (brute-force) approach. Using brute-force:</p>
+
+<ul>
+  <li>There is some (often significant) wait time for warm-up.</li>
+  <li>Memory usage goes through the roof, more than often blowing up all available memory.</li>
+  <li>Height sampling happens at the vertices and not at the heightmap texels.</li>
+</ul>
+
+<p>Points 1-2 are very obvious. It becomes impossible to abuse displacement, or to recklessly use it for large surfaces. Some techniques such as back-face culling or camera culling can be used to work around these difficulties, but such techniques pose problems on their own. Expecting the user to be careful not to exceed his memory budget is always an ill-fated plan.</p>
+
+<p>Point 3 often means that the resulting displacement is smudgy, and not as crisp as it should be. <em>i.e.,</em> information is lost, and/or geometry is produced in excess. Some techniques (that Maverick itself has featured in the past) such as <em>autobump</em> can be used to work around this problem by kind-of-restoring the information that is lost in the process. But then again, optimal configuration would become the responsibility of the user.</p>
+
+<p>None of these issues happen with MPDM. :-)</p>
+
+<h3 id="are-there-any-benefits-to-the-old-brute-force-approach">Are there any benefits to the old brute-force approach?</h3>
+
+<p>As usual, nothing really good comes without a price. This is often very true in the realm of algorithm optimization.</p>
+
+<ul>
+  <li>MPDM unfolds virtualized geometry during ray-traversal. The displaced geometry <em>never</em> exists for real in memory (that is why it is said to be <em>virtualized</em>) and this is the reason why MPDM has a near 0-cost in memory usage. However, this virtualization comes at an algorithmic cost. Despite massively optimized, MPDM renders a bit more slowly than the same displaced geometry would if the vertices were pre-displaced during warm-up and entered the ray-tracing BVH as regular geometry.</li>
+  <li>For MPDM, part of the optimization process relies on the fact that the input map is discretized in <em>texels</em>, (as in a regular bitmap). For brute-force displacement the only requirement is that the height map can be evaluated at each geometry vertex, which is true to bitmaps, procedurals, and all map types. So MPDM is a priori limited to <code class="language-plaintext highlighter-rouge">filetex</code> maps, but we have added to Maverick a new map type called <code class="language-plaintext highlighter-rouge">bakemap</code> so the user can bake any procedural map tree into a <code class="language-plaintext highlighter-rouge">filetex</code> to feed MPDM if necessary.</li>
+</ul>
+
+<h3 id="how-does-mpdm-work">How does MPDM work?</h3>
+
+<p>Here’s a very broad explanation on how MPDM in Maverick works:</p>
+
+<ul>
+  <li>A (rather classic) hierarchical partitioning scheme based in min-max mip-map levels is performed on the input heightmap. As depicted in the images below.</li>
+  <li>Those voxels are efficiently ray-traceable… unless there is curvature in the base mesh. Hell breaks loose as soon as curvature is at play. Maverick does non-affine math here (visualized in a previous post on non-affine <a href="https://www.brashandplucky.com/2022/07/07/barycentric-coords-in.html">triangle sweeps</a>). I’ve tried different approaches for this (non-affine, discretized, and hybrid), and the code allows to flag-switch each mode on and off.</li>
+  <li>Because of the non-affine treatment, at the lowest hierarchy level you no longer have quads or triangles, but bilinear patches (hence the name: <em>Micro-PATCH Displacement Mapping</em>).</li>
+</ul>
+
+<p><em>Non-affine MPDM in arbitrarily-curved surfaces</em></p>
+
+<p><img src="/uploads/2022/58b6c6fb54.png" width="600" height="400" alt="" /></p>
+
+<p><em>The input heightmap used</em></p>
+
+<p><img src="/uploads/2022/175b195678.jpg" width="512" height="512" alt="" /></p>
+
+<p><em>Affine MPDM in flat surfaces (special optimization branch)</em></p>
+
+<p><img src="/uploads/2022/a1ab151eee.png" width="600" height="400" alt="" /></p>
+
+<p><em>The input heightmap used</em></p>
+
+<p><img src="/uploads/2022/98cf72db76.jpg" width="512" height="512" alt="" /></p>
+
+<p>But the devil lies in the details. Efficient implementation of this all was a multi-week hell working with data structures, low-level optimizations, coordinating MPDM with OptiX and the rest of the Maverick core, and dealing with plenty of non-obvious fine-grain issues such as:</p>
+
+<ul>
+  <li>Avoiding cracks across edges.</li>
+  <li>Dealing with UV mapping projections.</li>
+  <li>Transfer of shading normals.</li>
+  <li>Real-time notifications from the UI.</li>
+  <li>…</li>
+</ul>
+
+<p>Youtube 4K videos:</p>
+
+<iframe width="640" height="640" src="http://www.youtube.com/embed/2PdRx0sALgg?color=white&amp;theme=light"></iframe>
+<iframe width="640" height="640" src="http://www.youtube.com/embed/O9qUCZTxkTQ?color=white&amp;theme=light"></iframe>
+<iframe width="640" height="640" src="http://www.youtube.com/embed/ZKcLPQkhFWc?color=white&amp;theme=light"></iframe>
+<iframe width="640" height="640" src="http://www.youtube.com/embed/Y9DFtEo5Hgo?color=white&amp;theme=light"></iframe>
+
+  </div><a class="u-url" href="/3d/coding/math/render/2022/09/30/micropatch-displacement-mapping.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Chema Guerra</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Chema Guerra</li><li><a class="u-email" href="mailto:chemaguerra@gmail.com">chemaguerra@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">chemaguerra</span></a></li><li><a href="https://www.twitter.com/chemaguerra"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">chemaguerra</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Write an awesome description for your new site here. You can edit this line in _config.yml. It will appear in your document head meta (for Google search results) and in your feed.xml site description.</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
